@@ -54,6 +54,7 @@ let platforms =
     [
       (* Compiler versions:*)
       v "4.10" Builders.amd4 "debian-10" "4.10";       (* Note: first item is also used as lint platform *)
+      v "4.11" Builders.amd4 "debian-10" "4.11";
       v "4.09" Builders.amd3 "debian-10" "4.09";
       v "4.08" Builders.amd1 "debian-10" "4.08";
       v "4.07" Builders.amd2 "debian-10" "4.07";
