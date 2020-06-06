@@ -13,6 +13,26 @@ type t = {
   test : OpamPackage.Name.Set.t;
 }
 
+let ocaml_beta_pkg = OpamPackage.of_string "ocaml-beta.enabled"
+
+(* From https://github.com/ocaml/ocaml-beta-repository/blob/master/packages/ocaml-beta/ocaml-beta.enabled/opam *)
+let ocaml_beta_opam = OpamFile.OPAM.read_from_string {|
+opam-version: "2.0"
+maintainer: "platform@lists.ocaml.org"
+bug-reports: "https://github.com/ocaml/ocaml/issues"
+authors: [
+  "Xavier Leroy"
+  "Damien Doligez"
+  "Alain Frisch"
+  "Jacques Garrigue"
+  "Didier Rémy"
+  "Jérôme Vouillon"
+]
+homepage: "https://ocaml.org"
+synopsis: "OCaml beta releases enabled"
+description: "Virtual package enabling the installation of OCaml beta releases."
+|}
+
 let load t pkg =
   let { OpamPackage.name; version } = pkg in
   match OpamPackage.Name.Map.find_opt name t.pins with
@@ -22,6 +42,7 @@ let load t pkg =
     | None -> Fmt.failwith "Package %S not found" (OpamPackage.Name.to_string name)
     | Some versions ->
       match OpamPackage.Version.Map.find_opt version versions with
+      | None when OpamPackage.compare pkg ocaml_beta_pkg = 0 -> ocaml_beta_opam
       | None -> Fmt.failwith "Package %S not found" (OpamPackage.to_string pkg)
       | Some opam -> opam
 
@@ -52,6 +73,11 @@ let candidates t name =
       OpamConsole.log "opam-0install" "Package %S not found!" (OpamPackage.Name.to_string name);
       []
     | Some versions ->
+      let versions =
+        if OpamPackage.Name.compare name (OpamPackage.name ocaml_beta_pkg) = 0 then 
+          OpamPackage.Version.Map.add (OpamPackage.version ocaml_beta_pkg) ocaml_beta_opam versions
+        else versions
+      in
       let user_constraints = user_restrictions t name in
       OpamPackage.Version.Map.bindings versions
       |> List.rev_map (fun (v, _) ->
