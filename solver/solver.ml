@@ -29,7 +29,7 @@ let solve ~packages ~pins ~root_pkgs (vars : Worker.Vars.t) =
       ~test:(OpamPackage.Name.Set.of_list root_pkgs)
   in
   let t0 = Unix.gettimeofday () in
-  let r = Solver.solve context root_pkgs in
+  let r = Solver.solve context (ocaml_package :: root_pkgs) in
   let t1 = Unix.gettimeofday () in
   Printf.printf "%.2f\n" (t1 -. t0);
   match r with
