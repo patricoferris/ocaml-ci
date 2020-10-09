@@ -80,7 +80,7 @@ module Op = struct
     let build_spec =
       let base = Raw.Image.hash base in
       match ty with
-      | `Opam (`Build, selection, opam_files) -> Opam_build.spec ~base ~opam_files ~selection
+      | `Opam (`Build, selection, opam_files) -> Opam_build.spec ~github:false ~base ~opam_files ~selection
       | `Opam (`Lint `Doc, selection, opam_files) -> Lint.doc_spec ~base ~opam_files ~selection
       | `Opam (`Lint `Opam, _selection, opam_files) -> Lint.opam_lint_spec ~base ~opam_files
       | `Opam_fmt ocamlformat_source -> Lint.fmt_spec ~base ~ocamlformat_source

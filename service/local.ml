@@ -7,9 +7,9 @@ let () =
   Unix.putenv "PROGRESS_NO_TRUNC" "1";
   Logging.init ()
 
-let main config mode repo =
+let main config mode github repo =
   let repo = Current_git.Local.v (Fpath.v repo) in
-  let engine = Current.Engine.create ~config (Pipeline.local_test ~solver repo) in
+  let engine = Current.Engine.create ~config (Pipeline.local_test ~github ~solver repo) in
   let site = Current_web.Site.(v ~has_role:allow_all) ~name:"ocaml-ci-local" (Current_web.routes engine) in
   Logging.run begin
     Lwt.choose [
@@ -22,6 +22,13 @@ let main config mode repo =
 
 open Cmdliner
 
+let github =
+  Arg.value @@
+  Arg.flag @@ Arg.info
+  ~doc:"Generate Github Action workflow files instead of building docker images"
+  ~docv:"GITHUB"
+  ["g"; "github"]
+
 let repo =
   Arg.required @@
   Arg.pos 0 Arg.(some dir) None @@
@@ -32,7 +39,7 @@ let repo =
 
 let cmd =
   let doc = "Test ocaml-ci on a local Git clone" in
-  Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner $ repo),
+  Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner $ github $ repo ),
   Term.info "ocaml-ci-local" ~doc
 
 let () = Term.(exit @@ eval cmd)
