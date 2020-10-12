@@ -1,3 +1,4 @@
 pin-depends: [
   ["obuilder-spec.dev" "git+https://github.com/ocurrent/obuilder.git#a43d2132312e46f0b0aa1f9d0da24b9f1e5574e2"]
+  ["github-workflow.dev" "git+https://github.com/patricoferris/opam-github-workflow#3f05bfaf406511e77595a63f9ba85c0d31a1369a"]
 ]

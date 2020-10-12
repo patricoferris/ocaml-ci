@@ -49,7 +49,7 @@ let rec get_root_opam_packages = function
 
 let download_cache = "opam-archives"
 
-let install_for_github ?(_docker=false) ~opam_files ~selection =
+let install_for_github ~winmac ~opam_files ~selection =
 let { Selection.packages; commit; variant } = selection in
   let groups = group_opam_files opam_files in
   let root_pkgs = get_root_opam_packages groups in
@@ -62,6 +62,12 @@ let { Selection.packages; commit; variant } = selection in
     else
       []
   in
+  if winmac then 
+  ( pin_opam_files ~github:true groups @ [
+    (* env "DEPS" (String.concat " " non_root_pkgs); *)
+    run ~cache "opam depext --update -yt %s" (String.concat " " root_pkgs);
+    run ~cache "opam install -t --deps-only ."
+  ]) else begin 
   (if Variant.arch variant |> Ocaml_version.arch_is_32bit then
      [shell ["/usr/bin/linux32"; "/bin/sh"; "-c"]] else []) @ [
     comment "%s" (Fmt.strf "%a" Variant.pp variant);
@@ -73,7 +79,7 @@ let { Selection.packages; commit; variant } = selection in
     env "DEPS" (String.concat " " non_root_pkgs);
     run ~cache "opam depext --update -y %s $DEPS" (String.concat " " root_pkgs);
     run ~cache "opam install $DEPS"
-  ]
+  ] end
 
 let install_project_deps ~opam_files ~selection =
   let { Selection.packages; commit; variant } = selection in
@@ -101,13 +107,15 @@ let install_project_deps ~opam_files ~selection =
     run ~cache "opam install $DEPS"
   ]
 
-let spec ?(github=false) ~base ~opam_files ~selection =
+let spec ?(github=None) ~base ~opam_files ~selection () =
   let open Obuilder_spec in
-  if github then (stage ~from:base (
+  match (github : Github.t option) with 
+  | Some { winmac; _ } ->  (stage ~from:base (
     user ~uid:1000 ~gid:1000 ::
-    install_for_github ~_docker:true ~opam_files ~selection @ 
+    install_for_github ~winmac ~opam_files ~selection @ 
     [run "opam exec -- dune build @install @runtest && rm -rf _build"]
-  )) else 
+  ))
+  | None ->  
   stage ~from:base (
     user ~uid:1000 ~gid:1000 ::
     install_project_deps ~opam_files ~selection @ [

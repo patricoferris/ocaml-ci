@@ -84,3 +84,30 @@ let platforms =
   | `Dev ->
       let ovs = List.map OV.of_string_exn ["4.10"; "4.11"; "4.03"] in
       List.map make_release ovs @ [make_release ~arch:`I386 (List.hd ovs)]
+
+let most_recent ovs = 
+  let rec take_n n acc vs = match n, vs with 
+    | 0, _ -> List.rev acc 
+    | _, [] -> List.rev acc 
+    | n, x::xs -> take_n (n - 1) (x::acc) xs 
+  in
+    take_n ovs [] (List.rev OV.Releases.recent)
+    |> List.map OV.with_just_major_and_minor
+
+let github_platforms ~ovs = 
+  let v ?(arch=`X86_64) label distro ocaml_version =
+    { arch; label; builder = Builders.local; pool = pool_of_arch arch; distro; ocaml_version }
+  in
+  let releases = most_recent ovs in 
+  let make_distro distro =
+    let label = DD.latest_tag_of_distro distro in
+    let tag = DD.tag_of_distro distro in
+      List.map (fun ov -> v label tag ov) releases
+  in
+  let distros = 
+    List.map make_distro [
+      `Debian `V10; `Alpine `V3_12; `Ubuntu `V18_04;
+      `OpenSUSE `V15_2; `CentOS `V8
+    ] |> List.flatten
+  in
+    distros

@@ -1,5 +1,11 @@
+val github : 
+  solver:Ocaml_ci_api.Solver.t -> 
+  fmt:bool -> ovs:int -> winmac:bool -> exit:bool ->
+  Current_git.Local.t -> unit -> unit Current.t
+(** [github ~solver repo] is a pipeline that produces Github Action workflows using the OCaml-CI for 
+    dependency solving. *)
+
 val local_test : 
-  github:bool ->
   solver:Ocaml_ci_api.Solver.t -> 
   Current_git.Local.t -> unit -> unit Current.t
 (** [local_test ~solver repo] is a pipeline that tests local repository [repo] as the CI would. *)

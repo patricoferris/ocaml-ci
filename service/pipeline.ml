@@ -1,12 +1,12 @@
 open Current.Syntax
 
 open Ocaml_ci
-let checkout_pool = Current.Pool.create ~label:"git-clone" 1
+(* let checkout_pool = Current.Pool.create ~label:"git-clone" 1 *)
 module Git = Current_git
 module Github = Current_github
 module Docker = Current_docker.Default
 
-let platforms =
+let make_platforms plats =
   let schedule = Current_cache.Schedule.v ~valid_for:(Duration.of_day 30) () in
   let v { Conf.label; builder; pool; distro; ocaml_version; arch } =
     let base = Platform.pull ~arch ~schedule ~builder ~distro ~ocaml_version in
@@ -17,7 +17,9 @@ let platforms =
     in
     Platform.get ~arch ~label ~builder ~pool ~distro ~ocaml_version ~host_base base
   in
-  Current.list_seq (List.map v Conf.platforms)
+  Current.list_seq (List.map v plats)
+
+let platforms = make_platforms Conf.platforms
 
 (* Link for GitHub statuses. *)
 let url ~owner ~name ~hash = Uri.of_string (Printf.sprintf "https://ci.ocamllabs.io/github/%s/%s/commit/%s" owner name hash)
@@ -73,121 +75,10 @@ let get_job_id x =
   | Some { Current.Metadata.job_id; _ } -> job_id
   | None -> None
 
-module Raw = Current_docker.Raw
-let commit_locks = Hashtbl.create 1000
-
-let rec with_commit_lock ~job commit variant fn =
-  let open Lwt.Infix in 
-  let key = (Current_git.Commit.hash commit, variant) in
-  match Hashtbl.find_opt commit_locks key with
-  | Some lock ->
-    Current.Job.log job "Waiting for a similar build to finish...";
-    lock >>= fun () ->
-    with_commit_lock ~job commit variant fn
-  | None ->
-    let finished, set_finished = Lwt.wait () in
-    Hashtbl.add commit_locks key finished;
-    Lwt.finalize fn
-      (fun () ->
-         Hashtbl.remove commit_locks key;
-         Lwt.wakeup set_finished ();
-         Lwt.return_unit
-      )
-module Op = struct
-  type t = Builder.t
-
-  let id = "ci-build"
-
-  module Key = struct
-    type t = {
-      commit : Current_git.Commit.t;            (* The source code to build and test *)
-      repo : Current_github.Repo_id.t;          (* Used to choose a build cache *)
-      label : string;                           (* A unique ID for this build within the commit *)
-    }
-
-    let to_json { commit; label; repo } =
-      `Assoc [
-        "commit", `String (Current_git.Commit.hash commit);
-        "repo", `String (Fmt.to_to_string Current_github.Repo_id.pp repo);
-        "label", `String label;
-      ]
-
-    let digest t = Yojson.Safe.to_string (to_json t)
-  end
-
-  module Value = struct
-    type t = {
-      ty : Spec.ty;
-      base : Raw.Image.t;                       (* The image with the OCaml compiler to use. *)
-      variant : Variant.t;                      (* Added as a comment in the Dockerfile *)
-    }
-
-    let to_json { base; ty; variant } =
-      `Assoc [
-        "base", `String (Raw.Image.digest base);
-        "op", Spec.ty_to_yojson ty;
-        "variant", (Variant.to_yojson variant);
-      ]
-
-    let digest t = Yojson.Safe.to_string (to_json t)
-  end
-
-  module Outcome = Current.Unit
-
-  let or_raise = function
-    | Ok () -> ()
-    | Error (`Msg m) -> raise (Failure m)
-
-  let run { Builder.docker_context = _; pool; build_timeout } job
-      { Key.commit; label = _; repo } { Value.base; variant; ty } =
-    let open Obuilder_spec in 
-    let build_spec =
-      let base = Raw.Image.hash base in
-      match ty with
-      | `Opam (`Build, selection, opam_files) -> Opam_build.spec ~github:true ~base ~opam_files ~selection
-      | `Opam (`Lint `Doc, selection, opam_files) -> Lint.doc_spec ~base ~opam_files ~selection
-      | `Opam (`Lint `Opam, _selection, opam_files) -> Lint.opam_lint_spec ~base ~opam_files
-      | `Opam_fmt ocamlformat_source -> Lint.fmt_spec ~base ~ocamlformat_source
-      | `Duniverse -> Duniverse_build.spec ~base ~repo ~variant
-    in
-    let make_workflow () =
-      Obuilder_spec.Action.workflow_of_spec build_spec
-    in
-    Current.Job.write job
-      (Fmt.strf "@[<v>Base: %a@,%a@]@."
-          Raw.Image.pp base
-          Spec.pp_summary ty);
-    Current.Job.write job
-      (Fmt.strf "@.\
-                  To reproduce locally:@.@.\
-                  %a@.\
-                  cat > .github/workflows/ocaml-ci.yml <<'END-OF-WORKFLOW'@.\
-                  \o033[34m%a\o033[0m@.\
-                  END-OF-WORKFLOW@."
-          Current_git.Commit_id.pp_user_clone (Current_git.Commit.id commit)
-          Action.pp (make_workflow ()));
-    let open Lwt.Infix in 
-    let workflow = Action.to_string (make_workflow ()) in
-    Current.Job.start ~timeout:build_timeout ~pool job ~level:Current.Level.Average >>= fun () ->
-    with_commit_lock ~job commit variant @@ fun () ->
-    Current_git.with_checkout ~pool:checkout_pool ~job commit @@ fun dir ->
-    Current.Job.write job (Fmt.strf "Writing Workflow:@.%s@." workflow);
-    Bos.OS.File.write Fpath.(dir / "ocaml-ci.yml") (workflow ^ "\n") |> or_raise;
-    Current.Process.exec ~cancellable:true ~job ("echo", [| "done writing files"|])
-
-  let pp f ({ Key.repo; commit; label }, _) =
-    Fmt.pf f "test %a %a (%s)"
-      Current_github.Repo_id.pp repo
-      Current_git.Commit.pp commit
-      label
-
-  let auto_cancel = true
-  let latched = true
-end 
-
+module Op = Github_op
 module GC = Current_cache.Generic(Op)
 
-let github_v ~platforms ~repo ~spec source = 
+let github_v ~github ~platforms ~repo ~spec source = 
   Current.component "write" |>
   let> { Spec.variant; ty; label } = spec
   and> commit = source
@@ -195,14 +86,75 @@ let github_v ~platforms ~repo ~spec source =
   and> repo = repo in
   match List.find_opt (fun p -> Variant.equal p.Platform.variant variant) platforms with 
   | Some { Platform.builder; variant; base; _ } ->
-    GC.run builder { Op.Key.commit; repo; label } { Op.Value.base; ty; variant }
+    GC.run builder { Op.Key.commit; repo; label; github } { Op.Value.base; ty; variant }
   | None ->
   (* We can only get here if there is a bug. If the set of platforms changes, [Analyse] should recalculate. *)
   let msg = Fmt.strf "BUG: variant %a is not a supported platform" Variant.pp variant in
   Current_incr.const (Error (`Msg msg), None)
 
-let build_with_docker ?ocluster ?(github=true) ~repo ~analysis source =
-  print_endline "USING GITHUB"; print_endline @@ string_of_bool github;
+let build_with_github ~repo ~platforms ~analysis ~fmt ~winmac ~ovs source = 
+  Current.with_context analysis @@ fun () ->
+  let specs =
+    let+ analysis = Current.state ~hidden:true analysis in
+    match analysis with
+    | Error _ ->
+        (* If we don't have the analysis yet, just use the empty list. *)
+        []
+    | Ok analysis ->
+      match Analyse.Analysis.selections analysis with
+      | `Duniverse variants ->
+        variants
+        |> List.rev_map (fun variant ->
+            Spec.duniverse ~label:(Variant.to_string variant) ~variant
+          )
+      | `Opam_build selections ->
+        let lint_selection = List.hd selections in
+        (* Building the Windows and MacOS version solves the dependencies via Ubuntu *)
+        let winmac_version = 
+          if winmac then [ Spec.opam ~label:"winmac" ~selection:lint_selection ~analysis `Build] else []
+        in 
+        let builds =
+          selections |> List.map (fun selection ->
+              let label = Variant.to_string selection.Selection.variant in
+              Spec.opam ~label ~selection ~analysis `Build
+            )
+        and lint = if fmt then 
+          [
+            Spec.opam ~label:"(lint-fmt)" ~selection:lint_selection ~analysis (`Lint `Fmt);
+            Spec.opam ~label:"(lint-doc)" ~selection:lint_selection ~analysis (`Lint `Doc);
+            Spec.opam ~label:"(lint-opam)" ~selection:lint_selection ~analysis (`Lint `Opam);
+          ] else []
+        in
+        lint @ builds @ winmac_version
+  in
+  let builds = specs |> Current.list_map (module Spec) (fun spec ->
+      let+ result = 
+          let github : Ocaml_ci.Github.t = { winmac; ovs } in 
+          let build = github_v ~github ~platforms ~repo ~spec source in 
+          let+ state = Current.state ~hidden:true build
+          and+ job_id = get_job_id build
+          and+ spec = spec
+          and+ b = build in 
+          let result =
+            state |> Result.map @@ fun _ ->
+            match spec.ty with
+            | `Duniverse
+            | `Opam (`Build, _, _) -> `Built
+            | `Opam (`Lint (`Doc|`Opam), _, _) -> `Checked
+            | `Opam_fmt _ -> `Checked
+          in
+          result, Some b, job_id
+      and+ spec = spec in
+      Spec.label spec, result
+    ) in
+  let+ builds = builds
+  and+ analysis_result = Current.state ~hidden:true (Current.map (fun _ -> `Checked) analysis)
+  and+ analysis_id = get_job_id analysis in
+  builds @ [
+    "(analysis)", (analysis_result, None, analysis_id);
+  ]
+
+let build_with_docker ?ocluster ~repo ~analysis source =
   Current.with_context analysis @@ fun () ->
   let specs =
     let+ analysis = Current.state ~hidden:true analysis in
@@ -235,23 +187,9 @@ let build_with_docker ?ocluster ?(github=true) ~repo ~analysis source =
   in
   let builds = specs |> Current.list_map (module Spec) (fun spec ->
       let+ result =
-        match ocluster, github with
-        | None, false -> Build.v ~platforms ~repo ~spec source
-        | None, true -> 
-          let build = github_v ~platforms ~repo ~spec source in 
-          let+ state = Current.state ~hidden:true build
-          and+ job_id = get_job_id build
-          and+ spec = spec in
-          let result =
-            state |> Result.map @@ fun () ->
-            match spec.ty with
-            | `Duniverse
-            | `Opam (`Build, _, _) -> `Built
-            | `Opam (`Lint (`Doc|`Opam), _, _) -> `Checked
-            | `Opam_fmt _ -> `Checked
-          in
-          result, job_id
-        | Some ocluster, _ ->
+        match ocluster with
+        | None -> Build.v ~platforms ~repo ~spec source
+        | Some ocluster ->
           let src = Current.map Git.Commit.id source in
           Cluster_build.v ocluster ~platforms ~repo ~spec src
       and+ spec = spec in
@@ -283,6 +221,30 @@ let list_errors ~ok errs =
         Fmt.strf "%a failed" Fmt.(list ~sep:(unit ", ") pp_label) errs
     ))
 
+let summarise_github exit results =
+  let open Workflow in 
+  let dots_to_underscores s = String.(concat "_" (split_on_char '.' s)) in 
+  let make_yaml (jobs : Github_op.Outcome.t list) : Yaml.value = 
+    `O (List.map (fun (f : Github_op.Outcome.t) -> (dots_to_underscores f.variant, Types.job_to_yaml f.action.job)) jobs) 
+  in  
+  let jobs = results |> List.map (fun (_, job, _) -> match job with Some job -> [job] | None -> []) |> List.flatten in 
+  let t = t (make_yaml jobs) |> with_name "Github OCaml-CI" |> with_on (simple_event ["push"; "pull_request"]) in 
+  if List.length jobs > 0 then (print_endline (Fmt.str "%a" (Pp.workflow ~drop_null:true (fun a -> a)) t)); 
+  if exit then Stdlib.exit 0;
+  results |> List.fold_left (fun (ok, pending, err, skip) -> function
+      | _, _, Ok `Checked -> (ok, pending, err, skip)  (* Don't count lint checks *)
+      | _, _, Ok `Built -> (ok + 1, pending, err, skip)
+      | l, _, Error `Msg m when Astring.String.is_prefix ~affix:"[SKIP]" m -> (ok, pending, err, (m, l) :: skip)
+      | l, _, Error `Msg m -> (ok, pending, (m, l) :: err, skip)
+      | _, _, Error `Active _ -> (ok, pending + 1, err, skip)
+    ) (0, 0, [], [])
+  |> fun (ok, pending, err, skip) ->
+  if pending > 0 then Error (`Active `Running)
+  else match ok, err, skip with
+    | 0, [], skip -> list_errors ~ok:0 skip (* Everything was skipped - treat skips as errors *)
+    | _, [], _ -> Ok ()                     (* No errors and at least one success *)
+    | ok, err, _ -> list_errors ~ok err     (* Some errors found - report *)
+
 let summarise results =
   results |> List.fold_left (fun (ok, pending, err, skip) -> function
       | _, Ok `Checked -> (ok, pending, err, skip)  (* Don't count lint checks *)
@@ -299,18 +261,36 @@ let summarise results =
     | ok, err, _ -> list_errors ~ok err     (* Some errors found - report *)
 
 
-let local_test ~github ~solver repo () =
+let github ~solver ~fmt ~ovs ~winmac ~exit repo () =
+  let src = Git.Local.head_commit repo in
+  let releases = Conf.github_platforms ~ovs in 
+  let platforms = make_platforms releases in 
+  let repo = Current.return { Github.Repo_id.owner = "local"; name = "test" } 
+  and analysis = Analyse.examine ~solver ~platforms ~opam_repository_commit src in
+    Current.component "Github Summary" |>
+    let> results = 
+      build_with_github 
+        ~repo ~platforms ~analysis ~fmt ~winmac 
+        ~ovs:(Conf.most_recent ovs |> List.map Ocaml_version.to_string) src in
+    let result =
+      results
+      |> List.map (fun (variant, (build, job, _job)) -> variant, job, build)
+      |> summarise_github exit
+    in
+    Current_incr.const (result, None) 
+
+let local_test ~solver repo () =
   let src = Git.Local.head_commit repo in
   let repo = Current.return { Github.Repo_id.owner = "local"; name = "test" }
   and analysis = Analyse.examine ~solver ~platforms ~opam_repository_commit src in
-  Current.component "summarise" |>
-  let> results = build_with_docker ~github ~repo ~analysis src in
-  let result =
-    results
-    |> List.map (fun (variant, (build, _job)) -> variant, build)
-    |> summarise
-  in
-  Current_incr.const (result, None)
+    Current.component "summarise" |>
+    let> results = build_with_docker ~repo ~analysis src in
+    let result =
+      results
+      |> List.map (fun (variant, (build, _job)) -> variant, build)
+      |> summarise
+    in
+    Current_incr.const (result, None)
 
 let v ?ocluster ~app ~solver () =
   let ocluster = Option.map (Cluster_build.config ~timeout:(Duration.of_hour 1)) ocluster in

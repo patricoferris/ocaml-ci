@@ -35,6 +35,8 @@
   ocluster-api
   obuilder-spec
   conf-libev
+  yaml
+  github-workflow
   (dockerfile (>= 7.0.0))
   (dockerfile-opam (>= 7.0.0))
   (ocaml-version (>= 3.0.0))

@@ -49,6 +49,7 @@ let () =
   match Conf.profile with
   | `Production -> Logs.info (fun f -> f "Using production configuration")
   | `Dev -> Logs.info (fun f -> f "Using dev configuration")
+  | `Github -> Logs.info (fun f -> f "Using github (dev) configuration")
 
 let or_die = function
   | Ok x -> x
