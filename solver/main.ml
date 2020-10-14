@@ -49,7 +49,7 @@ let () =
         Lwt_process.open_process cmd
       in
       Service.v ~n_workers ~create_worker >>= fun service ->
-      export service ~on:Lwt_unix.stdin
+      Lwt.catch (fun () -> export service ~on:Lwt_unix.stdin) (fun _ -> Stdlib.exit 0) 
     end
   | [| _prog; "--worker"; hash |] -> Solver.main (Git_unix.Store.Hash.of_hex hash)
   | args -> Fmt.failwith "Usage: ocaml-ci-solver (got %a)" Fmt.(array (quote string)) args

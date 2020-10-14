@@ -6,4 +6,5 @@
 	url = https://github.com/talex5/opam-0install-solver
 [submodule "ocluster"]
 	path = ocluster
-	url = https://github.com/ocurrent/ocluster.git
+	branch = github-workflows
+	url = https://github.com/patricoferris/ocluster

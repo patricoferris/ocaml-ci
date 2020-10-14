@@ -4,16 +4,14 @@ let () =
   Unix.putenv "DOCKER_BUILDKIT" "1";
   Unix.putenv "PROGRESS_NO_TRUNC" "1"
 
-let main config mode fmt ovs winmac exit repo =
+let main config mode fmt ovs winmac exit server repo =
   let repo = Current_git.Local.v (Fpath.v repo) in
-  let engine = Current.Engine.create ~config (Pipeline.github ~solver ~fmt ~ovs ~winmac ~exit repo) in
+  let engine = Current.Engine.create ~config (Pipeline.github ~exit ~solver ~fmt ~ovs ~winmac repo) in
   let site = Current_web.Site.(v ~has_role:allow_all) ~name:"ocaml-ci-github" (Current_web.routes engine) in
-  Logging.run begin
-    Lwt.choose [
-      Current.Engine.thread engine;
-      Current_web.run ~mode site;
-    ]
-  end
+  Logging.run (
+    Lwt.choose 
+      ([Current.Engine.thread engine] @ (if server then [Current_web.run ~mode site] else []))
+  )
 
 (* Command-line parsing *)
 
@@ -37,6 +35,11 @@ let ext =
   let docv = "EXIT" in 
   Arg.(value & flag & info ~doc ~docv ["e"; "exit"])
 
+let server = 
+  let doc = "Run the webserver to view the pipeline at localhost:8080" in 
+  let docv = "SERVER" in 
+  Arg.(value & flag & info ~doc ~docv ["s"; "server"])
+
 let ovs = 
   let doc  = "Specify the number of most recent OCaml versions you want" in 
   let docv = "OVS" in
@@ -52,7 +55,7 @@ let repo =
 
 let cmd =
   let doc = "Produce Github Action workflows for testing your project" in
-  Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner $ fmt $ ovs $ winmac $ ext $ repo ),
+  Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner $ fmt $ ovs $ winmac $ ext $ server $ repo ),
   Term.info "ocaml-ci-github" ~doc
 
 let () = Term.(exit @@ eval cmd)

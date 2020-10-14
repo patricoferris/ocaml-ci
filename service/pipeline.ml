@@ -229,8 +229,8 @@ let summarise_github exit results =
   in  
   let jobs = results |> List.map (fun (_, job, _) -> match job with Some job -> [job] | None -> []) |> List.flatten in 
   let t = t (make_yaml jobs) |> with_name "Github OCaml-CI" |> with_on (simple_event ["push"; "pull_request"]) in 
-  if List.length jobs > 0 then (print_endline (Fmt.str "%a" (Pp.workflow ~drop_null:true (fun a -> a)) t)); 
-  if exit then Stdlib.exit 0;
+  if List.length jobs > 0 then (Fmt.(pf stdout "%a" (Pp.workflow ~drop_null:true (fun a -> a)) t); 
+  if exit then try Stdlib.exit 0 with _ -> Stdlib.exit 0); 
   results |> List.fold_left (fun (ok, pending, err, skip) -> function
       | _, _, Ok `Checked -> (ok, pending, err, skip)  (* Don't count lint checks *)
       | _, _, Ok `Built -> (ok + 1, pending, err, skip)
@@ -261,7 +261,7 @@ let summarise results =
     | ok, err, _ -> list_errors ~ok err     (* Some errors found - report *)
 
 
-let github ~solver ~fmt ~ovs ~winmac ~exit repo () =
+let github ~exit ~solver ~fmt ~ovs ~winmac repo () =
   let src = Git.Local.head_commit repo in
   let releases = Conf.github_platforms ~ovs in 
   let platforms = make_platforms releases in 

@@ -37,7 +37,7 @@ let pin_opam_files ?(github=false) groups =
             Printf.sprintf "opam pin add -yn %s %S" pkg (Fpath.to_string dir)
           )
       )
-    |> String.concat " && \\\n  "
+    |> (if github then String.concat " && " else String.concat " && \\\n  ")
     |> run "%s"
   ]
 
@@ -50,7 +50,8 @@ let rec get_root_opam_packages = function
 let download_cache = "opam-archives"
 
 let install_for_github ~winmac ~opam_files ~selection =
-let { Selection.packages; commit; variant } = selection in
+  ignore winmac;
+  let { Selection.packages; commit; variant } = selection in
   let groups = group_opam_files opam_files in
   let root_pkgs = get_root_opam_packages groups in
   let non_root_pkgs = packages |> List.filter (fun pkg -> not (List.mem pkg root_pkgs)) in
@@ -62,12 +63,13 @@ let { Selection.packages; commit; variant } = selection in
     else
       []
   in
-  if winmac then 
+  if winmac then
   ( pin_opam_files ~github:true groups @ [
-    (* env "DEPS" (String.concat " " non_root_pkgs); *)
+    env "DEPS" (String.concat " " non_root_pkgs);
+    (* run "cd ~/opam-repository && (git cat-file -e %s || git fetch origin master) && git reset -q --hard %s && git log --no-decorate -n1 --oneline && opam update -u" commit commit; *)
     run ~cache "opam depext --update -yt %s" (String.concat " " root_pkgs);
-    run ~cache "opam install -t --deps-only ."
-  ]) else begin 
+    run ~cache "opam list --short --columns=package > installed.deps; for dep in $DEPS; do [[ ! \"$dep\" =~ $(echo ^\\($(paste -sd'|' installed.deps)\\)$) && ! \"$dep\" = \"ocaml.\"* && ! \"$dep\" = \"ocaml-base-compiler.\"* ]] && export NEW_DEPS=\"$dep $NEW_DEPS\"; done; echo $NEW_DEPS; opam install $NEW_DEPS"
+  ]) else ( 
   (if Variant.arch variant |> Ocaml_version.arch_is_32bit then
      [shell ["/usr/bin/linux32"; "/bin/sh"; "-c"]] else []) @ [
     comment "%s" (Fmt.strf "%a" Variant.pp variant);
@@ -79,7 +81,7 @@ let { Selection.packages; commit; variant } = selection in
     env "DEPS" (String.concat " " non_root_pkgs);
     run ~cache "opam depext --update -y %s $DEPS" (String.concat " " root_pkgs);
     run ~cache "opam install $DEPS"
-  ] end
+  ])
 
 let install_project_deps ~opam_files ~selection =
   let { Selection.packages; commit; variant } = selection in
