@@ -5,7 +5,7 @@ let () =
   Unix.putenv "PROGRESS_NO_TRUNC" "1"
 
 let main config mode fmt ovs winmac exit server repo =
-  let repo = Current_git.Local.v (Fpath.v repo) in
+  let repo = Fpath.v repo in
   let engine = Current.Engine.create ~config (Pipeline.github ~exit ~solver ~fmt ~ovs ~winmac repo) in
   let site = Current_web.Site.(v ~has_role:allow_all) ~name:"ocaml-ci-github" (Current_web.routes engine) in
   Logging.run (

@@ -36,6 +36,7 @@
   obuilder-spec
   conf-libev
   yaml
+  bos
   github-workflow
   (dockerfile (>= 7.0.0))
   (dockerfile-opam (>= 7.0.0))

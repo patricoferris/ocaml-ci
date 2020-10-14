@@ -221,7 +221,7 @@ let list_errors ~ok errs =
         Fmt.strf "%a failed" Fmt.(list ~sep:(unit ", ") pp_label) errs
     ))
 
-let summarise_github exit results =
+let summarise_github repo exit results =
   let open Workflow in 
   let dots_to_underscores s = String.(concat "_" (split_on_char '.' s)) in 
   let make_yaml (jobs : Github_op.Outcome.t list) : Yaml.value = 
@@ -229,8 +229,13 @@ let summarise_github exit results =
   in  
   let jobs = results |> List.map (fun (_, job, _) -> match job with Some job -> [job] | None -> []) |> List.flatten in 
   let t = t (make_yaml jobs) |> with_name "Github OCaml-CI" |> with_on (simple_event ["push"; "pull_request"]) in 
-  if List.length jobs > 0 then (Fmt.(pf stdout "%a" (Pp.workflow ~drop_null:true (fun a -> a)) t); 
-  if exit then try Stdlib.exit 0 with _ -> Stdlib.exit 0); 
+  if List.length jobs > 0 then 
+    (ignore (Bos.OS.Dir.create Fpath.(repo / ".github" / "workflows" ));
+    let s = Fmt.(str "%a" (Pp.workflow ~drop_null:true (fun a -> a)) t) in
+    (match Bos.OS.File.write Fpath.(repo / ".github" / "workflows" / "ocaml-ci.yml") s with 
+    | Ok _ -> ()
+    | Error (`Msg m) -> failwith m);
+  if exit then Stdlib.exit 0);
   results |> List.fold_left (fun (ok, pending, err, skip) -> function
       | _, _, Ok `Checked -> (ok, pending, err, skip)  (* Don't count lint checks *)
       | _, _, Ok `Built -> (ok + 1, pending, err, skip)
@@ -262,20 +267,21 @@ let summarise results =
 
 
 let github ~exit ~solver ~fmt ~ovs ~winmac repo () =
-  let src = Git.Local.head_commit repo in
+  let r = Current_git.Local.v repo in 
+  let src = Git.Local.head_commit r in
   let releases = Conf.github_platforms ~ovs in 
   let platforms = make_platforms releases in 
-  let repo = Current.return { Github.Repo_id.owner = "local"; name = "test" } 
+  let repo_c = Current.return { Github.Repo_id.owner = "local"; name = "test" } 
   and analysis = Analyse.examine ~solver ~platforms ~opam_repository_commit src in
     Current.component "Github Summary" |>
     let> results = 
       build_with_github 
-        ~repo ~platforms ~analysis ~fmt ~winmac 
+        ~repo:repo_c ~platforms ~analysis ~fmt ~winmac 
         ~ovs:(Conf.most_recent ovs |> List.map Ocaml_version.to_string) src in
     let result =
       results
       |> List.map (fun (variant, (build, job, _job)) -> variant, job, build)
-      |> summarise_github exit
+      |> summarise_github repo exit
     in
     Current_incr.const (result, None) 
 
