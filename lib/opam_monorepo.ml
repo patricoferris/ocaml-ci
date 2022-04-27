@@ -104,7 +104,7 @@ let opam_dep_file packages =
 let switch_type ~platforms requested_ocaml_version =
   let has_exact_match =
     platforms
-    |> List.exists (fun (_, (vars : Ocaml_ci_api.Worker.Vars.t)) ->
+    |> List.exists (fun (_, (vars : Solver_service_api.Worker.Vars.t)) ->
            let platform_version =
              Ocaml_version.of_string_exn vars.ocaml_version
            in

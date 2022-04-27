@@ -1,5 +1,5 @@
 let debian_10_vars ocaml_package ocaml_version =
-  { Ocaml_ci_api.Worker.Vars.
+  { Solver_service_api.Worker.Vars.
     os = "debian";
     arch = "x86_64";
     os_family = "debian";

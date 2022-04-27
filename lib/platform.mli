@@ -6,21 +6,21 @@ type t = {
   pool : string;        (* OCluster pool *)
   variant : Variant.t;  (* e.g. "debian-10-ocaml-4.08" *)
   base : Current_docker.Raw.Image.t;
-  vars : Ocaml_ci_api.Worker.Vars.t;
+  vars : Solver_service_api.Worker.Vars.t;
 }
 
 val pp : t Fmt.t
 val compare : t -> t -> int
 
-val compiler_matches_major_and_minor : Ocaml_ci_api.Worker.Vars.t -> version:Ocaml_version.t -> bool
+val compiler_matches_major_and_minor : Solver_service_api.Worker.Vars.t -> version:Ocaml_version.t -> bool
 (** [compiler_matches_major_and_minor vars ~version] is [true] iff the compiler
     version in [vars] matches [version], considering only the major and minor
     parts of the version number. *)
 
 val set_compiler_version :
-  Ocaml_ci_api.Worker.Vars.t ->
+  Solver_service_api.Worker.Vars.t ->
   version:Ocaml_version.t ->
-  Ocaml_ci_api.Worker.Vars.t
+  Solver_service_api.Worker.Vars.t
 
 val get :
   arch:Ocaml_version.arch ->

@@ -1,4 +1,4 @@
-let spawn_local ?solver_dir () : Ocaml_ci_api.Solver.t =
+let spawn_local ?solver_dir () : Solver_service_api.Solver.t =
   let p, c = Unix.(socketpair PF_UNIX SOCK_STREAM 0 ~cloexec:true) in
   Unix.clear_close_on_exec c;
   let solver_dir =

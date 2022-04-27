@@ -8,4 +8,5 @@
  ocluster
  ocaml-version
  ocaml-dockerfile
- ocaml-matrix)
+ ocaml-matrix
+ solver-service)

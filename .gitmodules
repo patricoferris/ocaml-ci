@@ -18,3 +18,6 @@
 	path = ocaml-matrix
 	url = https://github.com/mirage/ocaml-matrix.git
 	branch = main
+[submodule "solver-service"]
+	path = solver-service
+	url = https://github.com/patricoferris/solver-service.git

@@ -10,16 +10,16 @@ module Analysis : sig
     ]
 
   val of_dir :
-    solver:Ocaml_ci_api.Solver.t ->
+    solver:Solver_service_api.Solver.t ->
     job:Current.Job.t ->
-    platforms:(Variant.t * Ocaml_ci_api.Worker.Vars.t) list ->
+    platforms:(Variant.t * Solver_service_api.Worker.Vars.t) list ->
     opam_repository_commit:Current_git.Commit_id.t ->
     Fpath.t ->
     (t, [ `Msg of string ]) result Lwt.t
 end
 
 val examine :
-  solver:Ocaml_ci_api.Solver.t ->
+  solver:Solver_service_api.Solver.t ->
   platforms:Platform.t list Current.t ->
   opam_repository_commit:Current_git.Commit_id.t Current.t ->
   Current_git.Commit.t Current.t ->

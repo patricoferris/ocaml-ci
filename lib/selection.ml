@@ -6,7 +6,7 @@ type t = {
 } [@@deriving yojson, ord]
 
 let of_worker w =
-  let module W = Ocaml_ci_api.Worker.Selection in
+  let module W = Solver_service_api.Worker.Selection in
   let { W.id; packages; commit } = w in
   let variant = Variant.of_string id in
   { variant; packages; commit }

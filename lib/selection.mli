@@ -5,7 +5,7 @@ type t = {
   commit : string;                    (** A commit in opam-repository to use. *)
 } [@@deriving yojson, ord]
 
-val of_worker : Ocaml_ci_api.Worker.Selection.t -> t
+val of_worker : Solver_service_api.Worker.Selection.t -> t
 
 val remove_package : t -> package:string -> t
 

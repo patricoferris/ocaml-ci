@@ -2,7 +2,7 @@ open Lwt.Infix
 open Current.Syntax
 
 module Raw = Current_docker.Raw
-module Worker = Ocaml_ci_api.Worker
+module Worker = Solver_service_api.Worker
 
 type t = {
   label : string;
@@ -28,7 +28,7 @@ let compiler_matches_major_and_minor vars ~version =
 
 let set_compiler_version vars ~version =
   let ocaml_version = Ocaml_version.to_string version in
-  { vars with Worker.Vars.ocaml_version }
+  { vars with Solver_service_api.Worker.Vars.ocaml_version }
 
 module Query = struct
   let id = "opam-vars"
