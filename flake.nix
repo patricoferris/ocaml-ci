@@ -12,7 +12,7 @@
   };
 
   outputs = { self, nixpkgs, opam-nix, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system: {
+    flake-utils.lib.eachDefaultSystem (system: rec {
       legacyPackages =
         let 
           inherit (opam-nix.lib.${system}) buildOpamProject';
@@ -21,5 +21,6 @@
         scope;
 
       packages.default = self.legacyPackages.${system}.ocaml-ci-service;
-      });
+      defaultPackage = packages.default;
+    });
 }
