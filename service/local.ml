@@ -10,8 +10,11 @@ let setup_log style_renderer default_level =
 let main () config mode repos solve_uri : ('a, [ `Msg of string ]) result =
   let open Ocaml_ci_service in
   let solver = Ocaml_ci.Backend_solver.v solve_uri in
-  let repos = List.map (fun repo -> 
-    Current_git.Local.v (Fpath.v repo)) repos
+  let repos = List.filter_map (fun repo ->
+    if Sys.is_directory (Filename.concat repo ".git")
+    then 
+      Some (Current_git.Local.v (Fpath.v repo))
+    else None) repos
   in
   let engine =
     Current.Engine.create ~config
