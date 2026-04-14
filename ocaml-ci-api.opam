@@ -10,6 +10,7 @@ bug-reports: "https://github.com/ocurrent/ocaml-ci/issues"
 depends: [
   "ocaml" {>= "4.14"}
   "dune" {>= "3.20"}
+  "solver-service-api"
   "current_rpc"
   "capnp" {>= "3.4.0"}
   "capnp-rpc-lwt" {>= "1.2"}
@@ -33,3 +34,21 @@ build: [
 ]
 dev-repo: "git+https://github.com/ocurrent/ocaml-ci.git"
 x-maintenance-intent: ["(latest)"]
+pin-depends: [
+  [ "current.dev" "git+https://github.com/ocurrent/ocurrent#6754be6622f22e1fc19bfdbad43c16cd90a6f036" ]
+  [ "current_rpc.dev" "git+https://github.com/ocurrent/ocurrent#6754be6622f22e1fc19bfdbad43c16cd90a6f036" ]
+  [ "current_git.dev" "git+https://github.com/ocurrent/ocurrent#6754be6622f22e1fc19bfdbad43c16cd90a6f036" ]
+  [ "current_docker.dev" "git+https://github.com/ocurrent/ocurrent#6754be6622f22e1fc19bfdbad43c16cd90a6f036" ]
+  [ "current_github.dev" "git+https://github.com/ocurrent/ocurrent#6754be6622f22e1fc19bfdbad43c16cd90a6f036" ]
+  [ "current_rpc.dev" "git+https://github.com/ocurrent/ocurrent#6754be6622f22e1fc19bfdbad43c16cd90a6f036" ]
+  [ "current_web.dev" "git+https://github.com/ocurrent/ocurrent#6754be6622f22e1fc19bfdbad43c16cd90a6f036" ]
+  [ "ocluster.dev" "git+https://github.com/ocurrent/ocluster#ba26623c6bca8b917c4252fa9739313fb14692ea"]
+  [ "current_ocluster.dev" "git+https://github.com/ocurrent/ocluster#ba26623c6bca8b917c4252fa9739313fb14692ea"]
+  [ "ocluster-api.dev" "git+https://github.com/ocurrent/ocluster#ba26623c6bca8b917c4252fa9739313fb14692ea"]
+  [ "ocluster-worker.dev" "git+https://github.com/ocurrent/ocluster#ba26623c6bca8b917c4252fa9739313fb14692ea"]
+  [ "solver-service.dev" "git+https://github.com/patricoferris/solver-service#dfbf3f01ad67b97a5400b5e4196f49e4e8791afe"]
+  [ "solver-service-api.dev" "git+https://github.com/patricoferris/solver-service#dfbf3f01ad67b97a5400b5e4196f49e4e8791afe"]
+  [ "solver-worker.dev" "git+https://github.com/patricoferris/solver-service#dfbf3f01ad67b97a5400b5e4196f49e4e8791afe"]
+  [ "dockerfile.dev" "git+https://github.com/ocurrent/ocaml-dockerfile#57ed58f00ac0f458ca75db31d87f3bef9b5577f7"]
+  [ "dockerfile-opam.dev" "git+https://github.com/ocurrent/ocaml-dockerfile#57ed58f00ac0f458ca75db31d87f3bef9b5577f7"]
+]

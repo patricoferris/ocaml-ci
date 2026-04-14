@@ -14,6 +14,7 @@
  (depends
   (ocaml (>= 4.14))
   dune
+  solver-service-api
   ; Provided by git submodules
   current_rpc
   ; Opam dependencies
@@ -30,13 +31,15 @@
   dune
   ocaml-ci-api
   ; Provided by git submodules
-  current
-  current_docker
-  current_ocluster
-  current_rpc
+  (current (= "dev"))
+  (current_docker (= "dev"))
+  (current_ocluster (= "dev"))
+  (current_rpc (= "dev"))
   obuilder-spec
   ocluster-api
-  solver-service
+  (solver-service (= "dev"))
+  (solver-worker (= "dev"))
+  (dockerfile-opam (= "dev"))
   ; Opam dependencies
   (bos (>= 0.2.1))
   (capnp-rpc-unix (>= 1.2))
@@ -58,16 +61,18 @@
  (depends
   (ocaml (>= 4.14))
   dune
+  ocaml-ci
   ocaml-ci-api
   ; Provided by git submodules
-  current_git
-  current_github
-  current_docker
-  current_web
-  current_rpc
-  current_ocluster
-  solver-service
-  ocluster-api
+  (current_git (= "dev"))
+  (current_github (= "dev"))
+  (current_docker (= "dev"))
+  (current_web (= "dev"))
+  (current_rpc (= "dev"))
+  (current_ocluster (= "dev"))
+  (solver-service (= "dev"))
+  (solver-service-api (= "dev"))
+  (ocluster-api (= "dev"))
   obuilder-spec
   ; Opam dependencies
   (alcotest (and (>= 1.7.0) :with-test))
@@ -78,7 +83,7 @@
   (capnp-rpc-unix (>= 1.2))
   (cmdliner (>= 1.1.1))
   (conf-libev (<> :os "win32"))
-  (dockerfile-opam (>= 8.2.1))
+  (dockerfile-opam (= "dev"))
   (fmt (>= 0.8.9))
   (logs (>= 0.7.0))
   (mirage-crypto-rng (>= 0.8.7))
@@ -90,28 +95,28 @@
   (prometheus-app (>= 1.2))
   (timedesc (>= 0.9.0))))
 
-(package
- (name ocaml-ci-gitlab)
- (synopsis "Test OCaml projects on GitLab")
- (description "Test OCaml projects on GitLab")
- (depends
-  (ocaml (>= 4.14))
-  dune
-  ocaml-ci
-  ocaml-ci-service
-  ; Provided by git submodules
-  current
-  current_git
-  current_gitlab
-  current_docker
-  ; Opam dependencies
-  (alcotest (and (>= 1.7.0) :with-test))
-  (cmdliner (>= 1.1.1))
-  (fmt (>= 0.8.9))
-  (gitlab-unix (>= 0.1.8))
-  (logs (>= 0.7.0))
-  (odoc :with-doc)
-  (prometheus-app (>= 1.2))))
+; (package
+;  (name ocaml-ci-gitlab)
+;  (synopsis "Test OCaml projects on GitLab")
+;  (description "Test OCaml projects on GitLab")
+;  (depends
+;   (ocaml (>= 4.14))
+;   dune
+;   ocaml-ci
+;   ocaml-ci-service
+;   ; Provided by git submodules
+;   current
+;   current_git
+;   current_gitlab
+;   current_docker
+;   ; Opam dependencies
+;   (alcotest (and (>= 1.7.0) :with-test))
+;   (cmdliner (>= 1.1.1))
+;   (fmt (>= 0.8.9))
+;   (gitlab-unix (>= 0.1.8))
+;   (logs (>= 0.7.0))
+;   (odoc :with-doc)
+;   (prometheus-app (>= 1.2))))
 
 (package
  (name ocaml-ci-client)
