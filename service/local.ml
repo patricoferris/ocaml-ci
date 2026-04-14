@@ -7,13 +7,15 @@ let setup_log style_renderer default_level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
   ()
 
-let main () config mode repo solve_uri : ('a, [ `Msg of string ]) result =
+let main () config mode repos solve_uri : ('a, [ `Msg of string ]) result =
   let open Ocaml_ci_service in
   let solver = Ocaml_ci.Backend_solver.v solve_uri in
-  let repo = Current_git.Local.v (Fpath.v repo) in
+  let repos = List.map (fun repo -> 
+    Current_git.Local.v (Fpath.v repo)) repos
+  in
   let engine =
     Current.Engine.create ~config
-      (Pipeline.local_test ~solver ~query_uri:None repo)
+      (Pipeline.local_test ~solver ~query_uri:None (Current.return repos))
   in
   let site =
     Current_web.Site.(v ~has_role:allow_all)
@@ -32,10 +34,10 @@ let setup_log =
   Term.(
     const setup_log $ Fmt_cli.style_renderer ~docs () $ Logs_cli.level ~docs ())
 
-let repo =
-  Arg.required
-  @@ Arg.pos 0 Arg.(some dir) None
-  @@ Arg.info ~doc:"The directory containing the .git subdirectory." ~docv:"DIR"
+let repos =
+  Arg.value
+  @@ Arg.pos_all Arg.dir []
+  @@ Arg.info ~doc:"The directories containing .git subdirectories." ~docv:"DIRS"
        []
 
 let submission_solver_service =
@@ -49,7 +51,7 @@ let submission_solver_service =
        [ "submission-solver-service" ]
 
 let cmd =
-  let doc = "Test ocaml-ci on a local Git clone" in
+  let doc = "Test ocaml-ci on a local Git clones" in
   let info =
     Cmd.info "ocaml-ci-local" ~doc ~envs:Ocaml_ci_service.Conf.cmdliner_envs
   in
@@ -60,7 +62,7 @@ let cmd =
         $ setup_log
         $ Current.Config.cmdliner
         $ Current_web.cmdliner
-        $ repo
+        $ repos
         $ submission_solver_service))
 
 let () = exit @@ Cmd.eval cmd

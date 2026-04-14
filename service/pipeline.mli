@@ -3,7 +3,7 @@
 val local_test :
   query_uri:Uri.t option ->
   solver:Ocaml_ci.Backend_solver.t ->
-  Current_git.Local.t ->
+  Current_git.Local.t list Current.t ->
   unit ->
   unit Current.t
 (** [local_test ~solver repo] is a pipeline that tests local repository [repo]

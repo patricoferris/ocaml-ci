@@ -109,14 +109,72 @@ let set_active_refs ~repo refs default_ref =
   Index.set_active_refs ~repo refs (ref_from_commit default);
   xs
 
-let local_test ~query_uri ~solver repo () =
+module Git_local = struct
+  include Git.Local
+
+  let compare t1 t2 = Fpath.compare (repo t1) (repo t2)
+  let pp ppf t = Fpath.pp ppf (repo t) 
+end
+
+let next_id =
+  let i = ref 0 in
+  fun () ->
+    let id = !i in
+    incr i;
+    id
+
+let read_refs t =
+  Sys.readdir Fpath.(to_string @@ (Git.Local.repo t) / ".git" / "refs" / "heads") |> Array.to_list
+  |> List.map (fun s -> "refs/heads/" ^ s) |>Result.ok |> Lwt.return
+
+let make_monitor t =
+  let open Lwt.Infix in
+  let heads = Fpath.(Git.Local.repo t / ".git" / "refs" / "heads") in
+  let read () = read_refs t in
+  let watch refresh =
+    let watch_dir = heads in
+    Irmin_watcher.hook (next_id ()) (Fpath.to_string watch_dir) (fun _path ->
+        refresh ();
+        Lwt.return_unit
+      )
+    >|= fun unwatch ->
+    fun () ->
+      unwatch ()
+  in
+  let pp f =
+    Fmt.pf f "%a" Fpath.pp (Git.Local.repo t)
+  in
+  Current.Monitor.create ~read ~watch ~pp
+  
+let refs t =
+  Current.component "refs" |>
+  let> t = t in
+  Current.Monitor.get @@ make_monitor t 
+
+let source repo ref =
+  Current.component "source" |>
+  let** repo = repo
+  and* ref = ref in
+  Git.Local.commit_of_ref repo ref
+
+  let repo_id repo =
+    Current.component "repo-id" |>
+    let** repo = repo in
+    let name = Git.Local.repo repo |> Fpath.basename in
+    Current.return { Repo_id.owner = "local"; name }
+  
+let local_test ~query_uri ~solver repos () =
   let platforms =
     Conf.fetch_platforms ~query_uri ~include_macos:false ~include_freebsd:false
       ~include_windows:false ~include_openbsd:false ()
   in
-  let src = Git.Local.head_commit repo in
+  repos |>
+  Current.list_iter ~collapse_key:"repo" (module Git_local) @@ fun repo ->
+  refs repo |>
+  Current.list_iter ~collapse_key:"ref" (module (struct include Current.String let compare = String.compare end)) @@ fun src ->
+  let src = source repo src in 
   let src_content = Repo_content.extract src in
-  let repo = Current.return { Repo_id.owner = "local"; name = "test" }
+  let repo = repo_id repo
   and analysis =
     Analyse.examine ~solver ~platforms ~opam_repository_commit src src_content
   in
