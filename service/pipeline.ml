@@ -125,7 +125,7 @@ let next_id =
 
 let read_refs t =
   Sys.readdir Fpath.(to_string @@ (Git.Local.repo t) / ".git" / "refs" / "heads") |> Array.to_list
-  |> List.map (fun s -> "refs/heads/" ^ s) |>Result.ok |> Lwt.return
+  |> List.map (fun s -> "refs/heads/" ^ s) |> Result.ok |> Lwt.return
 
 let make_monitor t =
   let open Lwt.Infix in
@@ -155,13 +155,14 @@ let source repo ref =
   Current.component "source" |>
   let** repo = repo
   and* ref = ref in
+  Logs.info (fun f -> f "source: %a:%s" Fpath.pp (Git_local.repo repo) ref);
   Git.Local.commit_of_ref repo ref
 
-  let repo_id repo =
-    Current.component "repo-id" |>
-    let** repo = repo in
-    let name = Git.Local.repo repo |> Fpath.basename in
-    Current.return { Repo_id.owner = "local"; name }
+let repo_id repo =
+  Current.component "repo-id" |>
+  let** repo = repo in
+  let name = Git.Local.repo repo |> Fpath.basename in
+  Current.return { Repo_id.owner = "local"; name }
   
 let local_test ~query_uri ~solver repos () =
   let platforms =
