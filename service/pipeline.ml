@@ -125,6 +125,7 @@ let next_id =
 
 let read_refs t =
   Sys.readdir Fpath.(to_string @@ (Git.Local.repo t) / ".git" / "refs" / "heads") |> Array.to_list
+  |> List.filter (fun s -> String.starts_with ~prefix:"test" s || String.equal s "main")
   |> List.map (fun s -> "refs/heads/" ^ s) |> Result.ok |> Lwt.return
 
 let make_monitor t =

@@ -11,7 +11,7 @@
     flake = false;
   };
 
-  outputs = { self, nixpkgs, opam-nix, flake-utils, ... }:
+  outputs = { self, nixpkgs, opam-nix, solver-service, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system: rec {
       legacyPackages =
         let 
@@ -20,7 +20,9 @@
         in
         scope;
 
-      packages.default = self.legacyPackages.${system}.ocaml-ci-service;
+      packages = {
+        default = self.legacyPackages.${system}.ocaml-ci-service;
+      };
       defaultPackage = packages.default;
     });
 }
