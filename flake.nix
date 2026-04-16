@@ -11,7 +11,7 @@
     flake = false;
   };
 
-  outputs = { self, nixpkgs, opam-nix, solver-service, flake-utils, ... }:
+  outputs = { self, nixpkgs, opam-nix, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system: rec {
       legacyPackages =
         let 
