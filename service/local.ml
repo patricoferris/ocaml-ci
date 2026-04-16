@@ -20,8 +20,12 @@ let main () config mode repos solve_uri : ('a, [ `Msg of string ]) result =
     Current.Engine.create ~config
       (Pipeline.local_test ~solver ~query_uri:None (Current.return repos))
   in
+  let has_role _ = function
+    | `Viewer -> true
+    | _ -> false
+  in
   let site =
-    Current_web.Site.(v ~has_role:allow_all)
+    Current_web.Site.(v ~secure_cookies:true ~has_role)
       ~name:"ocaml-ci-local"
       (Current_web.routes engine)
   in
