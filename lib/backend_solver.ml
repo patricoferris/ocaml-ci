@@ -35,7 +35,7 @@ let remote_solve con job request =
     (Current_ocluster.Connection.run_job ~job)
 
 let local () : t =
-  Local (Lwt.return (Solver_worker.Solver_request.create ~n_workers:20 ()))
+  Local (Lwt.return (Solver_worker.Solver_request.create ~n_workers:3 ()))
 
 let solve t job request ~log =
   match t with
